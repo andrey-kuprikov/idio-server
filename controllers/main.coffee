@@ -32,11 +32,12 @@ mainController =
 	addUser: (req, resp) ->
 		userJson = req.body
 
-		getListenedTracks (user) ->
-			tracks = lastfm.getTopTracks(user.lastfm.login)
+		setListenedTracks = (user) ->
+			lastfm.getTopTracks user.lastfm.login, (tracks) ->
+				console.log(tracks)
+				playlist.listen(user.id, tracks)
 			#todo: facebook
 			#tracks = _.union tracks, facebook.getTopTracks(user.facebook)
-			return tracks
 
 		User = db.model 'user'
 		User.findOne {login: userJson.login}, (err, user) ->
@@ -49,8 +50,7 @@ mainController =
 			user = new User(userJson)
 			user.save()
 
-			tracks = sendListenedTracks(user)
-			playlist.listen(user.id, tracks)
+			setListenedTracks(user)
 
 			resp.set('Location', '/users/' + user.login);
 			resp.send(201)
@@ -86,5 +86,6 @@ mainController =
 	addListens: (req, resp) ->
 		tracks = req.body
 		User = db.model 'user'
-		user = User.findOne({session: })
+		console.log('get user method undeined')
+		user = User.findOne()
 		playlist.listen(user.id, tracks)
