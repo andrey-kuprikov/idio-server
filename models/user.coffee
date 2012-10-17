@@ -1,6 +1,5 @@
 exports.initialize = (mongoose) ->
 	structure =
-		id: String
 		login: String
 		password: String
 		email: String

@@ -41,7 +41,7 @@ mainController =
 		setListenedTracks = (user) ->
 			lastfm.getTopTracks user.lastfm.login, (tracks) ->
 				console.log(tracks)
-				playlist.listen(user.id, tracks)
+				playlist.listen(user._id, tracks)
 			#todo: facebook
 			#tracks = _.union tracks, facebook.getTopTracks(user.facebook)
 
@@ -94,7 +94,7 @@ mainController =
 		User = db.model 'user'
 		console.log('get user method undeined')
 		user = User.findOne()
-		playlist.listen(user.id, tracks)
+		playlist.listen(user._id, tracks)
 
 	postSession: (req, resp) ->
 		login = req.body.login
@@ -113,6 +113,6 @@ mainController =
 				resp.send(404)
 				return
 
-			session = new Session {login: user.login}
+			session = new Session {userId: user._id}
 			session.save()
 			resp.send(200, session.toObject())
