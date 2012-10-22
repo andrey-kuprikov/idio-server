@@ -18,8 +18,6 @@ exports.setup = (app, config) ->
 	app.get '/users/', mainController.getUser
 	app.delete '/users/:login', mainController.delUser
 
-	app.post '/session/', mainController.postSession
-
 	app.post '/playlists/listens/', mainController.addListens
 
 	user.initialize mongoose
@@ -62,12 +60,32 @@ mainController =
 			resp.send(201)
 
 	getUser: (req, resp) ->
+		createSession = (user, resp) ->
+			Session = db.model 'session'
+
+			session = new Session {userId: user._id}
+			session.save()
+			user.sessionId = session._id
+			console.log 'response:'
+			console.log user.toObject()
+			resp.send(200, user.toObject())
+
 		console.log 'get user'
-		login = utils.getParam req.params.login
+		login = req.query.login
+		passwordHash = req.query.passwordHash
+		console.log login
+		console.log passwordHash
+		console.log req.query
 
 		User = db.model('user')
 
-		User.findOne {login: login}, (err, user) ->
+		filter=
+			login: login
+
+		if (passwordHash)
+			filter.password=passwordHash
+
+		User.findOne filter, (err, user) ->
 			if err
 				console.log '500'
 				resp.send 500
@@ -76,8 +94,9 @@ mainController =
 				console.log '404'
 				resp.send(404)
 				return
-				console.log '200 OK'
-			resp.send(200, user.toObject())
+
+			console.log '200 OK'
+			createSession user, resp
 
 	delUser: (req, resp) ->
 		login = utils.getParam req.params.login
@@ -99,24 +118,3 @@ mainController =
 		console.log('get user method undeined')
 		user = User.findOne()
 		playlist.listen(user._id, tracks)
-
-	postSession: (req, resp) ->
-		login = req.body.login
-		password = req.body.password
-		console.log login
-		console.log password
-
-		User = db.model 'user'
-		Session = db.model 'session'
-
-		User.findOne {login: login, password: password}, (err, user) ->
-			if err
-				resp.send 500, err
-				return
-			if !user
-				resp.send(404)
-				return
-
-			session = new Session {userId: user._id}
-			session.save()
-			resp.send(200, session.toObject())
