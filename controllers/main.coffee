@@ -2,9 +2,11 @@ utils = require './../utils'
 config = require './../config'
 request = require 'request'
 mongoose = require 'mongoose'
+invoke = require 'invoke'
 
 user = require './../models/user'
 session = require './../models/session'
+echonest = require './../models/echonest'
 
 lastfm = require './../models/lastfm'
 playlist = require './../models/playlist'
@@ -12,7 +14,8 @@ playlist = require './../models/playlist'
 db = mongoose.createConnection(config.mongohost, config.mongodatabase)
 
 exports.setup = (app, config) ->
-	app.get '/hello/:name', mainController.hello
+	app.post '/hello/', mainController.hello
+	app.get '/hello/', mainController.hello
 
 	app.post '/users/', mainController.addUser
 	app.get '/users/', mainController.getUser
@@ -25,13 +28,9 @@ exports.setup = (app, config) ->
 
 mainController =
 	hello: (req, resp) ->
-		name = utils.getParam req.params.name
+		console.log req.body
 
-		data=
-			name: name
-			msg: 'hello ' + name
-
-		resp.json data
+		resp.send 200
 
 	addUser: (req, resp) ->
 		userJson = req.body
@@ -52,23 +51,48 @@ mainController =
 				resp.send 409
 				return
 			user = new User(userJson)
-			user.save()
+			user.save (err) ->
+				if (err)
+					console.log 'error while saving user to db'
+					resp.send 500
+					return
 
-			setListenedTracks(user)
+				inv = invoke (d, cb) ->
+					echonest.request.createPlaylist user, cb
 
-			resp.set('Location', '/users/' + user.login);
-			resp.send(201)
+				inv.then (d, cb) ->
+					Playlist = db.model 'playlist'
+					playlist = new Playlist()
+					playlist.save()
+					user.playlistIds.push playlist._id
+				inv.then (d, cb) ->
+					setListenedTracks user, cb
+
+				inv.rescue (err) ->
+					console.log err
+					resp.send 500
+					return
+
+				inv.end null, (d, cb) ->
+					resp.set 'Location', '/users/' + user.login
+					resp.send 201
 
 	getUser: (req, resp) ->
-		createSession = (user, resp) ->
+		createSession = (user, cb) ->
 			Session = db.model 'session'
 
 			session = new Session {userId: user._id}
-			session.save()
-			user.sessionId = session._id
-			console.log 'response:'
-			console.log user.toObject()
-			resp.send(200, user.toObject())
+			session.save (err) ->
+				if (err)
+					cb err, null
+					console.log 'error while creating new session'
+					return
+			
+				user = user.toObject()
+				user.sessionId = session._id
+				console.log 'response:'
+				console.log user
+				cb null, user
 
 		console.log 'get user'
 		login = req.query.login
@@ -92,11 +116,15 @@ mainController =
 				return
 			if !user
 				console.log '404'
-				resp.send(404)
+				resp.send 404
 				return
 
 			console.log '200 OK'
-			createSession user, resp
+			createSession user, (err, data) ->
+				if (err)
+					resp.send 500
+					return
+				resp.send 200, data
 
 	delUser: (req, resp) ->
 		login = utils.getParam req.params.login

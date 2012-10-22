@@ -6,6 +6,7 @@ exports.server =
 
 exports.echonest =
 	api_key: 'N6E4NIOVYMTHNDM8J'
+	timeout: 2000
 
 exports.basehost = 'http://idio.net/'
 exports.lastfmKey = 'ba5259fc36b7d1b4fc2ec96215115089'
