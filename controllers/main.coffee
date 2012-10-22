@@ -15,7 +15,7 @@ exports.setup = (app, config) ->
 	app.get '/hello/:name', mainController.hello
 
 	app.post '/users/', mainController.addUser
-	app.get '/users/:login', mainController.getUser
+	app.get '/users/', mainController.getUser
 	app.delete '/users/:login', mainController.delUser
 
 	app.post '/session/', mainController.postSession
@@ -62,17 +62,21 @@ mainController =
 			resp.send(201)
 
 	getUser: (req, resp) ->
+		console.log 'get user'
 		login = utils.getParam req.params.login
 
 		User = db.model('user')
 
 		User.findOne {login: login}, (err, user) ->
 			if err
+				console.log '500'
 				resp.send 500
 				return
 			if !user
+				console.log '404'
 				resp.send(404)
 				return
+				console.log '200 OK'
 			resp.send(200, user.toObject())
 
 	delUser: (req, resp) ->

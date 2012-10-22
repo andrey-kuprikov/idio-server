@@ -4,7 +4,6 @@ exports.initialize = (mongoose) ->
 		password: String
 		email: String
 		name: String
-		session: String
 		lastfm:
 			login: String
 	schema = new mongoose.Schema structure
