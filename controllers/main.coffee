@@ -4,12 +4,8 @@ request = require 'request'
 mongoose = require 'mongoose'
 invoke = require 'invoke'
 
-user = require './../models/user'
-session = require './../models/session'
 echonest = require './../models/echonest'
-
 lastfm = require './../models/lastfm'
-playlist = require './../models/playlist'
 
 db = mongoose.createConnection(config.mongohost, config.mongodatabase)
 
@@ -23,8 +19,14 @@ exports.setup = (app, config) ->
 
 	app.post '/playlists/listens/', mainController.addListens
 
+	user = require './../models/user'
 	user.initialize mongoose
+
+	session = require './../models/session'
 	session.initialize mongoose
+
+	playlist = require './../models/playlist'
+	playlist.initialize mongoose
 
 mainController =
 	hello: (req, resp) ->
@@ -35,47 +37,76 @@ mainController =
 	addUser: (req, resp) ->
 		userJson = req.body
 
-		setListenedTracks = (user) ->
-			lastfm.getTopTracks user.lastfm.login, (tracks) ->
-				console.log(tracks)
-				playlist.listen(user._id, tracks)
+		setListenedTracks = (user, playlist, cb) ->
+			console.log 'ffg'
+			lastfm.getTopTracks user.lastfm.login, (err, data) ->
+				console.log data
+				if err
+					cb err, data
+				else
+					playlist.listen data, cb
 			#todo: facebook
 			#tracks = _.union tracks, facebook.getTopTracks(user.facebook)
 
-		User = db.model 'user'
-		User.findOne {login: userJson.login}, (err, user) ->
-			if err
-				resp.send 500
-				return
-			if user
-				resp.send 409
-				return
+
+		inv = invoke (d, cb) ->
+			User = db.model 'user'
+			User.findOne {login: userJson.login}, (err, user) ->
+				if err
+					cb err, 500
+				else if user
+					cb 'user already exists', 409
+				else
+					cb null, user
+
+		inv.then (d, cb) ->
+			User = db.model 'user'
 			user = new User(userJson)
+
 			user.save (err) ->
 				if (err)
-					console.log 'error while saving user to db'
-					resp.send 500
+					cb err, 500
+				else
+					cb null, user
+
+		inv.then (user, cb) ->
+			echonest.request.createPlaylist user, (err, data) ->
+				if err
+					cb err, 500
+				else
+					cb null, { user: user, echonest: data }
+
+		inv.then (data, cb) ->
+			console.log 'fff'
+			Playlist = db.model 'playlist'
+			playlist = new Playlist { echonestId: data.echonest.id }
+			playlist.save (err) ->
+				if (err)
+					cb err, 500
 					return
+				data.user.playlistIds.push playlist._id
+				data.user.save (err) ->
+					if (err)
+						cb err, 500
+						return
+					cb null, { user: data.user, playlist: playlist }
+					console.log 'fff1'
 
-				inv = invoke (d, cb) ->
-					echonest.request.createPlaylist user, cb
+		inv.then (data, cb) ->
+			setListenedTracks data.user, data.playlist, (err, d) ->
+				cb null, data
+			console.log 'fff2'
 
-				inv.then (d, cb) ->
-					Playlist = db.model 'playlist'
-					playlist = new Playlist()
-					playlist.save()
-					user.playlistIds.push playlist._id
-				inv.then (d, cb) ->
-					setListenedTracks user, cb
+		inv.rescue (err) ->
+			console.log err
+			resp.send 500
+			return
 
-				inv.rescue (err) ->
-					console.log err
-					resp.send 500
-					return
-
-				inv.end null, (d, cb) ->
-					resp.set 'Location', '/users/' + user.login
-					resp.send 201
+		inv.end null, (d, cb) ->
+			console.log 'fff3'
+			resp.set 'Location', '/users/' + d.user.login
+			resp.send 201
+			console.log 'fff4'
 
 	getUser: (req, resp) ->
 		createSession = (user, cb) ->
@@ -106,7 +137,7 @@ mainController =
 		filter=
 			login: login
 
-		if (passwordHash)
+		if passwordHash
 			filter.password=passwordHash
 
 		User.findOne filter, (err, user) ->
@@ -120,11 +151,14 @@ mainController =
 				return
 
 			console.log '200 OK'
-			createSession user, (err, data) ->
-				if (err)
-					resp.send 500
-					return
-				resp.send 200, data
+			if passwordHash
+				createSession user, (err, data) ->
+					if (err)
+						resp.send 500
+						return
+					resp.send 200, data
+			else
+				resp.send 200, user
 
 	delUser: (req, resp) ->
 		login = utils.getParam req.params.login

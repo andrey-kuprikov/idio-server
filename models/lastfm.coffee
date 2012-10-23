@@ -10,13 +10,17 @@ getMethodUrl = (method, params) ->
 exports.getTopTracks = (login, callback) ->
 	url = getMethodUrl('user.getTopTracks')
 	url = url + '&user=' + login + '&period=12month&limit=5'
-	request.get url, (error, response, body) ->
-		if (error || response.statusCode != 200)
-			callback()
+	console.log 'ggg'
+	request.get url, (err, response, body) ->
+		console.log 'ggg1'
+		if (err || response.statusCode != 200)
+			callback err, null
 		data = JSON.parse(body)
+		console.log 'ggg2'
 		result = _.map data.toptracks.track, (track) ->
 			res = 
 				songName: track.name
 				artistName: track.artist.name
 				count: track.playcount
-		callback(result)
+		console.log 'ggg3'
+		callback null, result

@@ -9,11 +9,13 @@ exports.initialize = (mongoose) ->
 	trackSchema = new mongoose.Schema trackStructure
 
 	playlistStructure =
+		echonestId: String
 		createDate: {type: Date, default: Date.now}
 		tracks: [trackSchema]
 	playlistSchema = new mongoose.Schema playlistStructure
-	
-	mongoose.model 'track', playlistSchema
 
-exports.listen = (id, tracks) ->
-	console.log('function playlist.listen is not defined')
+	playlistSchema.methods.listen =  (tracks, cb) ->
+		console.log('function playlist.listen is not defined')
+		cb null, null
+
+	mongoose.model 'playlist', playlistSchema

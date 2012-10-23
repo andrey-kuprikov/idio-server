@@ -43,10 +43,13 @@ echonest =
 		console.log options
 		request echonest.url + url, options, (err, r, body) ->
 		#request 'http://127.0.0.1:8888/hello/', options, (err, r, body) ->
+			console.log 'echonest reponse:' + body
 			statusCode = r && r.statusCode || 500
 
 			if !err and statusCode == 200
-				data = body ||  {}
+				data = JSON.parse(body) ||  {}
+				console.log 'data:' + data
+				console.log 'data.response:' + data.response
 				cb null, data.response || {}
 			else
 				cb err || body.response || body, 500
@@ -54,7 +57,19 @@ echonest =
 
 exports.request =
 	createPlaylist:		(user, callback) ->
-		echonest.request 'catalog/create', { name: user.login, type: 'song' }, { method: 'POST' }, callback
+		inv = invoke (d, cb) ->
+			echonest.request 'catalog/list', {}, { method: 'GET' }, cb
+		inv.then (d, cb) ->
+			console.log d
+			for c in d.catalogs
+				if c.name == user.login + '.common'
+					echonest.request 'catalog/delete', { id: c.id }, { method: 'POST' }, cb
+					return
+			cb null, null
+		inv.rescue (err) ->
+			callback err, 500
+		inv.end null, (d, cb) ->
+			echonest.request 'catalog/create', { name: user.login + '.common', type: 'song' }, { method: 'POST' }, callback
 
 
 	getSimilarTracks:	(artist, title, limit, callback) ->
