@@ -40,6 +40,7 @@ echonest =
 			options.form = params
 			options.headers = {'content-type' : 'application/x-www-form-urlencoded'}
 
+		console.log url
 		console.log options
 		request echonest.url + url, options, (err, r, body) ->
 		#request 'http://127.0.0.1:8888/hello/', options, (err, r, body) ->
@@ -56,7 +57,7 @@ echonest =
 
 
 exports.request =
-	createPlaylist:		(user, callback) ->
+	createPlaylist:	(user, callback) ->
 		inv = invoke (d, cb) ->
 			echonest.request 'catalog/list', {}, { method: 'GET' }, cb
 		inv.then (d, cb) ->
@@ -71,31 +72,10 @@ exports.request =
 		inv.end null, (d, cb) ->
 			echonest.request 'catalog/create', { name: user.login + '.common', type: 'song' }, { method: 'POST' }, callback
 
+	#update playlist items
+	updatePlaylist:	(user, data, callback) ->
+		echonest.request 'catalog/update', { id: user.playlistId , data: JSON.stringify(data) }, { method: 'POST' }, callback
 
-	getSimilarTracks:	(artist, title, limit, callback) ->
-		if !title
-			echonest.request 'playlist/basic?' + echonest.setParams({ artist:artist, type:'artist-radio', results:limit }), null, (err, data) ->
-				data = dataHandler.processTracks data.songs || []
-				callback err, data
-
-		else
-			inv = invoke (d, cb) ->
-				echonest.request 'song/search?' + echonest.setParams({ results:1, artist:artist, title:title }), null, cb
-
-			inv.then (d, cb) ->
-				if !d.songs or !d.songs.length
-					callback 'Track not found'
-					return
-
-				p = { type:'song-radio', results:limit }
-				if d.songs[0].id
-					p.song_id = d.songs[0].id
-				else if d.songs[0].tracks?[0].id
-					p.track_id = d.songs[0].tracks?[0].id
-
-				echonest.request 'playlist/basic?' + echonest.setParams(p), null, cb
-
-			inv.rescue (err) -> callback err, 500
-			inv.end null, (data, cb) ->
-				data = dataHandler.processTracks data.songs || []
-				callback null, data
+	#get playlist data
+	getPlaylist: (playlistId, callback) ->
+		echonest.request 'catalog/profile', { id: playlistId }, { method: 'GET' }, callback		

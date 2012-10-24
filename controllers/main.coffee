@@ -27,8 +27,17 @@ exports.setup = (app, config) ->
 	session = require './../models/session'
 	session.initialize mongoose
 
-	playlist = require './../models/playlist'
-	playlist.initialize mongoose
+converter = 
+	lastfm2echonest: (input) ->
+		output = []
+		for item in input
+			item = 
+				item_id: utils.makeHash(item.songName, null, item.artistName),
+				song_name: item.songName,
+				artist_name: item.artistName,
+				play_count: parseInt(item.count)
+			output.push { item: item }
+		return output
 
 mainController =
 	getRequestUser: (req, callback) ->
@@ -56,14 +65,14 @@ mainController =
 	addUser: (req, resp) ->
 		userJson = req.body
 
-		setListenedTracks = (user, playlist, cb) ->
+		setListenedTracks = (user, cb) ->
 			console.log 'ffg'
 			lastfm.getTopTracks user.lastfm.login, (err, data) ->
 				console.log data
 				if err
 					cb err, data
 				else
-					playlist.listen data, cb
+					echonest.request.updatePlaylist user, converter.lastfm2echonest(data), cb
 			#todo: facebook
 			#tracks = _.union tracks, facebook.getTopTracks(user.facebook)
 
@@ -96,26 +105,12 @@ mainController =
 				if err
 					cb err, 500
 				else
+					user.playlistId = data.id
+					user.save()
 					cb null, { user: user, echonest: data }
 
 		inv.then (data, cb) ->
-			console.log 'fff'
-			Playlist = db.model 'playlist'
-			playlist = new Playlist { echonestId: data.echonest.id }
-			playlist.save (err) ->
-				if (err)
-					cb err, 500
-					return
-				data.user.playlistIds.push playlist._id
-				data.user.save (err) ->
-					if (err)
-						cb err, 500
-						return
-					cb null, { user: data.user, playlist: playlist }
-					console.log 'fff1'
-
-		inv.then (data, cb) ->
-			setListenedTracks data.user, data.playlist, (err, d) ->
+			setListenedTracks data.user, (err, d) ->
 				cb null, data
 			console.log 'fff2'
 
@@ -212,8 +207,7 @@ mainController =
 		inv = invoke (d, cb) ->
 			mainController.getRequestUser req, cb
 		inv.then (d, cb) ->
-			Playlist = db.model 'playlist'
-			Playlist.findById d.playlistIds[0], cb
+			echonest.request.getPlaylist d.playlistId, cb
 		inv.rescue (err) ->
 			resp.send 500
 		inv.end null, (d, cb) ->

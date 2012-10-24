@@ -1,8 +1,22 @@
+crypto = require 'crypto'
 
 # для обрезки пробелов в начале и конце сторки
 if typeof String.prototype.trim == "undefined"
 	String.prototype.trim = () -> #String(this)
 		String(this).replace /^ +| +$/g, ''
+
+exports.md5 = (data) ->
+	return crypto.createHash(data)
+
+exports.makeHash = (trackName, albumName, artistName) ->
+	result = ''
+	if trackName
+		result = 'track'+artistName.toLowerCase()+trackName.toLowerCase()
+	else if albumName
+		result = 'album'+artistName.toLowerCase()+albumName.toLowerCase()
+	else
+		result = 'artist'+artistName.toLowerCase()
+	return result
 
 
 exports.getParam = (param) ->

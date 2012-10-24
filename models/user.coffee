@@ -6,7 +6,7 @@ exports.initialize = (mongoose) ->
 		name: String
 		createDate: {type: Date, default: Date.now}
 		#we user forward linking because user model should know about all user playlists
-		playlistIds: [mongoose.Schema.Types.ObjectId]
+		playlistId: String
 		lastfm:
 			login: String
 	schema = new mongoose.Schema structure
