@@ -1,7 +1,7 @@
 exports.initialize = (mongoose) ->
 	structure =
 		login: String
-		password: String
+		passwordHash: String
 		email: String
 		name: String
 		createDate: {type: Date, default: Date.now}

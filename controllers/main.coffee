@@ -15,9 +15,11 @@ exports.setup = (app, config) ->
 
 	app.post '/users/', mainController.addUser
 	app.get '/users/', mainController.getUser
-	app.delete '/users/:login', mainController.delUser
+	app.delete '/users/', mainController.delUser
 
 	app.post '/playlists/listens/', mainController.addListens
+
+	app.get '/playlists/', mainController.getUserPlaylist
 
 	user = require './../models/user'
 	user.initialize mongoose
@@ -29,6 +31,23 @@ exports.setup = (app, config) ->
 	playlist.initialize mongoose
 
 mainController =
+	getRequestUser: (req, callback) ->
+		sessionId = req.cookies.sessionId
+		if !sessionId
+			console.log 'authentication failed'
+			callback 'authentication failed', 403
+			return
+
+		inv = invoke (d, cb) ->
+			Session = db.model 'session'
+			Session.findById sessionId, cb
+		inv.rescue (err) ->
+			console.log err
+			callback err, null
+		inv.end null, (d, cb) ->
+			User = db.model 'user'
+			user = User.findById d.userId, callback
+
 	hello: (req, resp) ->
 		console.log req.body
 
@@ -50,6 +69,9 @@ mainController =
 
 
 		inv = invoke (d, cb) ->
+			if !userJson || !userJson.login || !userJson.passwordHash
+				cb 'Missing required param', 400
+				return
 			User = db.model 'user'
 			User.findOne {login: userJson.login}, (err, user) ->
 				if err
@@ -104,7 +126,7 @@ mainController =
 
 		inv.end null, (d, cb) ->
 			console.log 'fff3'
-			resp.set 'Location', '/users/' + d.user.login
+			resp.set 'Location', '/users/?login=' + d.user.login + '&passwordHash=' + d.user.passwordHash
 			resp.send 201
 			console.log 'fff4'
 
@@ -119,11 +141,12 @@ mainController =
 					console.log 'error while creating new session'
 					return
 			
-				user = user.toObject()
-				user.sessionId = session._id
+				data =
+					user: user.toObject()
+					sessionId: session._id
 				console.log 'response:'
-				console.log user
-				cb null, user
+				console.log data
+				cb null, data
 
 		console.log 'get user'
 		login = req.query.login
@@ -138,7 +161,7 @@ mainController =
 			login: login
 
 		if passwordHash
-			filter.password=passwordHash
+			filter.passwordHash=passwordHash
 
 		User.findOne filter, (err, user) ->
 			if err
@@ -156,12 +179,14 @@ mainController =
 					if (err)
 						resp.send 500
 						return
-					resp.send 200, data
+					console.log 'Cookie: sessionId=' + data.sessionId
+					resp.cookie 'sessionId', data.sessionId, { maxAge: 2000000000 }
+					resp.send 200, data.user
 			else
 				resp.send 200, user
 
 	delUser: (req, resp) ->
-		login = utils.getParam req.params.login
+		login = req.query.login
 
 		User = db.model('user')
 
@@ -175,8 +200,21 @@ mainController =
 			resp.send(200)
 
 	addListens: (req, resp) ->
+		console.log 'method undefined'
+		return
 		tracks = req.body
 		User = db.model 'user'
 		console.log('get user method undeined')
 		user = User.findOne()
 		playlist.listen(user._id, tracks)
+
+	getUserPlaylist: (req, resp) ->
+		inv = invoke (d, cb) ->
+			mainController.getRequestUser req, cb
+		inv.then (d, cb) ->
+			Playlist = db.model 'playlist'
+			Playlist.findById d.playlistIds[0], cb
+		inv.rescue (err) ->
+			resp.send 500
+		inv.end null, (d, cb) ->
+			resp.send d

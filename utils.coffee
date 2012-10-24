@@ -43,3 +43,13 @@ exports.cacheImageUrl = (url, source) ->
 exports.splitParams = (str) ->
 	[artist, album] = str.split '_'
 	[(exports.getParam artist), exports.getParam album]
+
+exports.getCookies = (req) ->
+	cookies = {}
+	if !req.headers.cookie
+		return cookies
+
+	for c in request.headers.cookie.split(';')
+    	parts = c.split '='
+    	cookies[ parts[ 0 ].trim() ] = ( parts[ 1 ] || '' ).trim()
+    return cookies
