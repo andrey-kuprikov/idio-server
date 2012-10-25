@@ -78,4 +78,4 @@ exports.request =
 
 	#get playlist data
 	getPlaylist: (playlistId, callback) ->
-		echonest.request 'catalog/profile', { id: playlistId }, { method: 'GET' }, callback		
+		echonest.request 'catalog/read', { id: playlistId }, { method: 'GET' }, callback		
