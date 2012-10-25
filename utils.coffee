@@ -6,7 +6,10 @@ if typeof String.prototype.trim == "undefined"
 		String(this).replace /^ +| +$/g, ''
 
 exports.md5 = (data) ->
-	return crypto.createHash(data)
+	hasher = crypto.createHash('md5')
+	hasher.update data, 'utf8'
+	return hasher.digest 'hex'
+
 
 exports.makeHash = (trackName, albumName, artistName) ->
 	result = ''
@@ -16,7 +19,7 @@ exports.makeHash = (trackName, albumName, artistName) ->
 		result = 'album'+artistName.toLowerCase()+albumName.toLowerCase()
 	else
 		result = 'artist'+artistName.toLowerCase()
-	return result
+	return exports.md5(result)
 
 
 exports.getParam = (param) ->

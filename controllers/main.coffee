@@ -211,4 +211,4 @@ mainController =
 		inv.rescue (err) ->
 			resp.send 500
 		inv.end null, (d, cb) ->
-			resp.send d
+			resp.send d.catalog
