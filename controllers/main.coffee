@@ -5,6 +5,7 @@ mongoose = require 'mongoose'
 invoke = require 'invoke'
 
 echonest = require './../models/echonest'
+vk = require './../models/vk'
 lastfm = require './../models/lastfm'
 
 db = mongoose.createConnection(config.mongohost, config.mongodatabase)
@@ -20,6 +21,8 @@ exports.setup = (app, config) ->
 	app.post '/playlists/listens/', mainController.addListens
 
 	app.get '/playlists/', mainController.getUserPlaylist
+
+	app.get '/track/', mainController.getTrackUrl
 
 	user = require './../models/user'
 	user.initialize mongoose
@@ -212,3 +215,13 @@ mainController =
 			resp.send 500
 		inv.end null, (d, cb) ->
 			resp.send d.catalog
+
+	getTrackUrl: (req, resp) ->
+		# audio.search?q=ZZZZZZ&sort=2&count=1&access_token=XXXXXX
+		artistName = req.query.artistName
+		trackName = req.query.trackName
+		vk.request.getTrackUrl artistName + ' - ' + trackName, (err, data) ->
+			if err
+				resp.send 500
+			resp.send data
+
