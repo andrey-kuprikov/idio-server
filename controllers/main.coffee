@@ -21,6 +21,7 @@ exports.setup = (app, config) ->
 	app.post '/playlists/listens/', mainController.addListens
 
 	app.get '/playlists/', mainController.getUserPlaylist
+	app.put '/playlists/', mainController.updatePlaylist
 
 	app.get '/track/', mainController.getTrackUrl
 
@@ -43,6 +44,17 @@ converter =
 		return output
 
 mainController =
+	setListenedTracks: (user, cb) ->
+		console.log 'ffg'
+		lastfm.getTopTracks user.lastfm.login, (err, data) ->
+			console.log data
+			if err
+				cb err, data
+			else
+				echonest.request.updatePlaylist user, converter.lastfm2echonest(data), cb
+		#todo: facebook
+		#tracks = _.union tracks, facebook.getTopTracks(user.facebook)
+
 	getRequestUser: (req, callback) ->
 		sessionId = req.cookies.sessionId
 		if !sessionId
@@ -67,18 +79,6 @@ mainController =
 
 	addUser: (req, resp) ->
 		userJson = req.body
-
-		setListenedTracks = (user, cb) ->
-			console.log 'ffg'
-			lastfm.getTopTracks user.lastfm.login, (err, data) ->
-				console.log data
-				if err
-					cb err, data
-				else
-					echonest.request.updatePlaylist user, converter.lastfm2echonest(data), cb
-			#todo: facebook
-			#tracks = _.union tracks, facebook.getTopTracks(user.facebook)
-
 
 		inv = invoke (d, cb) ->
 			if !userJson || !userJson.login || !userJson.passwordHash
@@ -113,7 +113,7 @@ mainController =
 					cb null, { user: user, echonest: data }
 
 		inv.then (data, cb) ->
-			setListenedTracks data.user, (err, d) ->
+			mainController.setListenedTracks data.user, (err, d) ->
 				cb null, data
 			console.log 'fff2'
 
@@ -215,6 +215,11 @@ mainController =
 			resp.send 500
 		inv.end null, (d, cb) ->
 			resp.send d.catalog
+
+	updatePlaylist: (req, resp) ->
+		mainController.getRequestUser req, (err, user) ->
+			mainController.setListenedTracks user, (err, data) ->
+				resp.send 200
 
 	getTrackUrl: (req, resp) ->
 		# audio.search?q=ZZZZZZ&sort=2&count=1&access_token=XXXXXX

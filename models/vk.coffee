@@ -59,5 +59,8 @@ exports.request =
 				callback err, data
 			else
 				console.log data
-				track = dataHandler.processTrack data[1]
-				callback err, track
+				if (data && data[0] > 0)
+					track = dataHandler.processTrack data[1]
+					callback null, track
+				else
+					callback 404, null

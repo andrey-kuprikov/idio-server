@@ -9,7 +9,7 @@ getMethodUrl = (method, params) ->
 
 exports.getTopTracks = (login, callback) ->
 	url = getMethodUrl('user.getTopTracks')
-	url = url + '&user=' + login + '&period=12month&limit=5'
+	url = url + '&user=' + login + '&period=12month&limit=50'
 	console.log 'ggg'
 	request.get url, (err, response, body) ->
 		console.log 'ggg1'
